@@ -1,26 +1,286 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F5EDD8;
+  --text-body: #5A3E2A;
+  --text-subtle: #B09070;
+  --foreground: #2C1810;
+  --card: rgba(253, 246, 227, 0.85);
+  --border: #D4B896;
+  --muted: #8B6F4E;
+  --gold: #C9A84C;
+  --gold-dark: #A07835;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --background: #0A0812;
+  --foreground: #F5EDD8;
+  --card: rgba(16, 13, 28, 0.75);
+  --border: rgba(201, 168, 76, 0.15);
+  --muted: #C4A882;
+  --gold: #C9A84C;
+  --gold-dark: #E8C46A;
+  --text-body: #C8B89A;
+  --text-subtle: #9A8468;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: radial-gradient(circle at center, rgba(160,115,45,0.2) 1.5px, transparent 1.5px);
+  background-size: 26px 26px;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Georgia", "Times New Roman", serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.4s ease, color 0.4s ease;
+  min-height: 100dvh;
 }
+
+.dark body {
+  background-image: radial-gradient(circle at center, rgba(201,168,76,0.07) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+/* Light mode: ruled paper lines + warm vignette */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(180,120,40,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 40% at 0% 100%, rgba(140,80,20,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(160,100,30,0.05) 0%, transparent 60%),
+    repeating-linear-gradient(
+      180deg,
+      transparent,
+      transparent 31px,
+      rgba(180, 140, 80, 0.06) 31px,
+      rgba(180, 140, 80, 0.06) 32px
+    );
+  transition: opacity 0.4s;
+}
+
+/* Light mode: grain texture overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 300px 300px;
+  transition: opacity 0.4s;
+}
+
+/* Dark mode: aurora blobs — richer, warmer */
+.dark body::before {
+  background-image:
+    radial-gradient(ellipse 70% 55% at 15% 20%, rgba(91, 33, 182, 0.2) 0%, transparent 100%),
+    radial-gradient(ellipse 50% 60% at 85% 75%, rgba(30, 58, 138, 0.16) 0%, transparent 100%),
+    radial-gradient(ellipse 55% 35% at 55% 5%,  rgba(201, 168, 76, 0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 40% 50% at 70% 45%, rgba(120, 20, 90, 0.1) 0%, transparent 100%),
+    radial-gradient(ellipse 60% 40% at 5% 80%,  rgba(15, 80, 120, 0.08) 0%, transparent 100%);
+}
+
+.dark body::after { opacity: 0; }
+
+#__next, main, header, .relative { position: relative; z-index: 1; }
+
+/* ============ GLASSMORPHISM ============ */
+.glass-card {
+  background-color: rgba(253, 246, 227, 0.92);
+  background-image: radial-gradient(circle at center, rgba(160,115,45,0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 184, 150, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(180, 140, 80, 0.12),
+    0 2px 12px rgba(100, 70, 20, 0.08);
+}
+
+.dark .glass-card {
+  background-color: rgba(16, 13, 28, 0.82);
+  background-image: radial-gradient(circle at center, rgba(201,168,76,0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(201, 168, 76, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(201, 168, 76, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* ============ ANIMATIONS ============ */
+@keyframes goldShimmer {
+  0%   { background-position: -300% center; }
+  100% { background-position: 300% center; }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.2; transform: scale(0.5); }
+}
+
+@keyframes auraGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes pulseRing {
+  0%   { transform: scale(0.95); opacity: 0.7; }
+  70%  { transform: scale(1.5);  opacity: 0; }
+  100% { transform: scale(1.5);  opacity: 0; }
+}
+
+@keyframes pageFlashShadow {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.18; }
+  50%  { opacity: 0.28; }
+  80%  { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-7px) rotate(1deg); }
+  66%       { transform: translateY(-3px) rotate(-1deg); }
+}
+
+@keyframes inkPulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.7; }
+}
+
+@keyframes rotateOrnament {
+  0%   { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.animate-float { animation: float 4s ease-in-out infinite; }
+.animate-ink   { animation: inkPulse 3s ease-in-out infinite; }
+
+/* ============ GOLD SHIMMER STRIPE ============ */
+.shimmer-gold {
+  background: linear-gradient(
+    90deg,
+    #A07835 0%,
+    #C9A84C 25%,
+    #F0D87A 50%,
+    #C9A84C 75%,
+    #A07835 100%
+  );
+  background-size: 300% auto;
+  animation: goldShimmer 4s linear infinite;
+}
+
+/* ============ HEADERS ============ */
+.specimen-header {
+  background: linear-gradient(135deg, #1E0842 0%, #4C1D95 45%, #7C3AED 80%, #9333EA 100%);
+}
+
+.enigme-header {
+  background: linear-gradient(135deg, #080D2E 0%, #1E3A8A 50%, #2563EB 80%, #3B82F6 100%);
+}
+
+/* ============ DIVIDERS ============ */
+.gold-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.5;
+}
+
+.gold-divider-ornate {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.6;
+  margin: 0.5rem 0;
+}
+.gold-divider-ornate::before {
+  content: "✦";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--gold);
+  font-size: 9px;
+  background: var(--background);
+  padding: 0 10px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* Corner ornaments for decorated cards */
+.card-ornate {
+  position: relative;
+}
+.card-ornate::before,
+.card-ornate::after {
+  content: "◈";
+  position: absolute;
+  font-size: 7px;
+  color: var(--gold);
+  opacity: 0.4;
+  pointer-events: none;
+  line-height: 1;
+}
+.card-ornate::before { top: 5px; left: 7px; }
+.card-ornate::after  { bottom: 5px; right: 7px; }
+
+/* ============ CARD HOVER GLOW ============ */
+.card-hover {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+}
+
+/* ============ FAB PULSE ============ */
+.fab-pulse {
+  position: relative;
+}
+.fab-pulse::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  animation: pulseRing 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  background: inherit;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ============ SECTION ORNAMENTS ============ */
+.section-ornament {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+.section-ornament::before,
+.section-ornament::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201,168,76,0.4));
+}
+.section-ornament::after {
+  background: linear-gradient(90deg, rgba(201,168,76,0.4), transparent);
+}
+
+/* ============ MISC ============ */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+.overflow-x-auto::-webkit-scrollbar { display: none; }
+.overflow-x-auto { -ms-overflow-style: none; scrollbar-width: none; }

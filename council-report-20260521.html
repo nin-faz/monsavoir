@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Council Report — MonSavoir DA Redesign</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; padding: 2rem 1rem; }
+  .container { max-width: 760px; margin: 0 auto; }
+  .header { border-bottom: 2px solid #e5e5e5; padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #888; }
+  .question { font-size: 1.1rem; font-weight: 600; color: #1a1a1a; margin-top: 0.5rem; line-height: 1.5; }
+  .verdict { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+  .verdict h2 { font-size: 1rem; font-weight: 700; color: #111; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 0.5rem; }
+  .verdict h2 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .verdict p { font-size: 0.9rem; color: #333; margin-bottom: 0.75rem; }
+  .verdict p:last-child { margin-bottom: 0; }
+  .verdict strong { color: #111; }
+  .verdict ul { padding-left: 1.25rem; margin-bottom: 0.75rem; }
+  .verdict ul li { font-size: 0.9rem; color: #333; margin-bottom: 0.4rem; }
+  .verdict-section { margin-bottom: 1.5rem; }
+  .verdict-section:last-child { margin-bottom: 0; }
+  .agrees .dot { background: #10b981; }
+  .clashes .dot { background: #f59e0b; }
+  .blind .dot { background: #8b5cf6; }
+  .rec .dot { background: #3b82f6; }
+  .one .dot { background: #ef4444; }
+  .one-thing { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 2rem; }
+  .one-thing .label { color: rgba(255,255,255,.5); }
+  .one-thing .text { font-size: 1rem; color: #fff; margin-top: 0.75rem; line-height: 1.7; }
+  .alignment-grid { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+  .alignment-grid h3 { font-size: 0.85rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+  .advisor-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+  .advisor-name { font-size: 0.8rem; font-weight: 600; width: 160px; flex-shrink: 0; color: #444; }
+  .stance-bar { flex: 1; height: 8px; border-radius: 4px; position: relative; }
+  .stance-label { font-size: 0.75rem; color: #888; width: 80px; text-align: right; flex-shrink: 0; }
+  .votes { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+  .vote { font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .vote-strong { background: #dcfce7; color: #166534; }
+  .vote-blind { background: #fef3c7; color: #92400e; }
+  .vote-missed { background: #ede9fe; color: #5b21b6; }
+  details { border: 1px solid #e5e5e5; border-radius: 10px; margin-bottom: 0.75rem; overflow: hidden; }
+  details[open] { box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+  summary { padding: 0.9rem 1.25rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #333; list-style: none; display: flex; align-items: center; justify-content: space-between; user-select: none; background: #fff; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; font-size: 1.1rem; color: #aaa; transition: transform 0.2s; }
+  details[open] summary::after { content: '−'; }
+  .advisor-body { padding: 1rem 1.25rem 1.25rem; font-size: 0.875rem; color: #444; line-height: 1.7; border-top: 1px solid #f0f0f0; background: #fff; }
+  .advisor-body p { margin-bottom: 0.75rem; }
+  .advisor-body ul { padding-left: 1.25rem; margin-bottom: 0.75rem; }
+  .advisor-body ul li { margin-bottom: 0.3rem; }
+  .advisor-tag { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-right: 0.5rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .tag-contrarian { background: #fee2e2; color: #991b1b; }
+  .tag-firstprinciples { background: #e0e7ff; color: #3730a3; }
+  .tag-expansionist { background: #d1fae5; color: #065f46; }
+  .tag-outsider { background: #fef3c7; color: #92400e; }
+  .tag-executor { background: #f3f4f6; color: #374151; }
+  .section-title { font-size: 0.85rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin: 2rem 0 0.75rem; }
+  .footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #e5e5e5; font-size: 0.75rem; color: #999; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="label">LLM Council Report</div>
+    <div class="question">MonSavoir DA Redesign — Cabinet of Curiosities Direction</div>
+    <div style="margin-top:0.5rem; font-size:0.8rem; color:#888;">21 mai 2026 · 5 advisors · 5 peer reviews · 1 chairman synthesis</div>
+  </div>
+
+  <!-- ONE THING -->
+  <div class="one-thing">
+    <div class="label">The one thing to do first</div>
+    <div class="text">Design the two card expand states — one for <strong>Spécimen</strong>, one for <strong>Énigme</strong> — before touching anything else in the codebase. The moment a card opens is the singular interaction where the cabinet metaphor either exists or it doesn't. Get those two states right, then build outward from there.</div>
+  </div>
+
+  <!-- VERDICT -->
+  <div class="verdict">
+
+    <div class="verdict-section">
+      <h2><span class="dot agrees"></span>Where the Council Agrees</h2>
+      <p><strong>The two types are epistemologically different and the design must reflect that structurally, not just chromatically.</strong> Words are fixed, classified, inert — specimen case material. Questions are alive, unresolved, dynamic. The redesign must treat them as different <em>kinds of thing</em>, not color variants.</p>
+      <p><strong>Nomenclature matters.</strong> "Pièces", "Ta collection", the generic FAB — every advisor sensed the language was doing nothing. Spécimens and Énigmes aren't decorative rebranding; they encode the epistemic difference directly into the daily vocabulary of the app.</p>
+      <p><strong>The Executor's palette is essentially correct.</strong> Parchment <code>#F5F0E8</code> / Ink <code>#1C1917</code> / Brass <code>#B8860B</code> / Violet <code>#5B21B6</code> / Amber <code>#D97706</code>. Nobody contested this.</p>
+      <p><strong>The collection is the hero, not the card.</strong> The unit of meaning is the accumulated whole. The design architecture should make that felt.</p>
+    </div>
+
+    <div class="verdict-section">
+      <h2><span class="dot clashes"></span>Where the Council Clashes</h2>
+      <p><strong>Contrarian vs. Everyone: Does the aesthetic serve the use case?</strong><br>
+      The Contrarian argues cabinet aesthetics are browsing aesthetics — slow, luxurious — and daily capture friction will kill the habit before the beauty earns its keep. Everyone else treats this as a false dichotomy. The Contrarian is <em>right about the risk but wrong about the conclusion</em>. The solution is a two-speed interface: capture is fast and minimal (aesthetic recedes), browse is immersive (aesthetic comes forward).</p>
+      <p><strong>Executor vs. First Principles Thinker: Costume vs. Logic</strong><br>
+      Parchment + brass + rotateY is museum <em>costume</em>, not museum <em>logic</em>. The Executor's path delivers a product that looks like a cabinet. The First Principles Thinker asks for something that <em>behaves</em> like one. Both are necessary. The correct answer is the Executor's critical path, executed in service of the First Principles framing.</p>
+    </div>
+
+    <div class="verdict-section">
+      <h2><span class="dot blind"></span>Blind Spots the Council Caught</h2>
+      <p><strong>The capture moment is where the cabinet metaphor lives or dies.</strong> 4/5 reviewers flagged this independently. The FAB → form → save flow is the highest-frequency interaction. If that gesture doesn't feel like placing an artifact, every aesthetic investment in the browse state is a museum nobody enters through the right door.</p>
+      <p><strong>The empty state and the sparse state.</strong> A premium cabinet aesthetic with 3 items looks broken, not curated. The design must account for day 1 through day 30 explicitly — the collection must <em>earn</em> the cabinet metaphor as it fills.</p>
+      <p><strong>Temporal asymmetry and patina.</strong> The collection should feel different at 300 entries than at 30 — not just fuller, but heavier, more personal, more yours. Mots want a specimen-cabinet browse experience; Questions want a journal/archive experience. These are different information architectures, not just different accent colors.</p>
+    </div>
+
+    <div class="verdict-section">
+      <h2><span class="dot rec"></span>The Recommendation</h2>
+      <p><strong>Build the cabinet in two phases with a clear gate between them.</strong></p>
+      <p><strong>Phase 1: Logic first, costume second.</strong> Before touching palette or typography, resolve the structural question: what does it mean for the two types to behave differently? Spécimens = pinned, fixed, classified — rigid card, archival interaction (unfold, read, close). Énigmes = alive and unresolved — different shape, different physics, something that signals the question is still open. Design these two card behaviors on paper before writing a line of CSS.</p>
+      <p><strong>Phase 2: The Executor's critical path.</strong> Palette → rename everything (Spécimens, Énigmes, Le Cabinet, Classifications, Cataloguer) → rebuild one card of each type → capture flow (not optional — the add gesture must feel like placing an artifact) → navigation retheme with Phosphor Icons. Each step independently shippable.</p>
+      <p><strong>Hard rule from the Contrarian:</strong> the capture flow gets <em>simpler</em> in the redesign, not more ornate. Baroque at rest, invisible in motion.</p>
+    </div>
+
+  </div>
+
+  <!-- ALIGNMENT VISUAL -->
+  <div class="alignment-grid">
+    <h3>Advisor Alignment Map</h3>
+
+    <div class="advisor-row">
+      <div class="advisor-name"><span class="advisor-tag tag-expansionist">Expansionist</span></div>
+      <div class="votes">
+        <span class="vote vote-strong">⭐ Strongest ×3</span>
+        <span style="font-size:0.78rem;color:#666;">Spécimens/Énigmes, two physics, longitudinal autobiography</span>
+      </div>
+    </div>
+    <div class="advisor-row">
+      <div class="advisor-name"><span class="advisor-tag tag-firstprinciples">First Principles</span></div>
+      <div class="votes">
+        <span class="vote vote-strong">⭐ Strongest ×1</span>
+        <span style="font-size:0.78rem;color:#666;">Vault not museum, nomenclature first, two natures not two colors</span>
+      </div>
+    </div>
+    <div class="advisor-row">
+      <div class="advisor-name"><span class="advisor-tag tag-executor">Executor</span></div>
+      <div class="votes">
+        <span class="vote vote-strong">⭐ Strongest ×2</span>
+        <span class="vote vote-blind">⚠ Blind spot ×4</span>
+        <span style="font-size:0.78rem;color:#666;">Good path, costume risk</span>
+      </div>
+    </div>
+    <div class="advisor-row">
+      <div class="advisor-name"><span class="advisor-tag tag-contrarian">Contrarian</span></div>
+      <div class="votes">
+        <span class="vote vote-blind">⚠ Blind spot ×2</span>
+        <span style="font-size:0.78rem;color:#666;">Right risk, wrong conclusion</span>
+      </div>
+    </div>
+    <div class="advisor-row">
+      <div class="advisor-name"><span class="advisor-tag tag-outsider">Outsider</span></div>
+      <div class="votes">
+        <span style="font-size:0.78rem;color:#666;">Spatial logic, patina, capture ritual — all validated by reviews</span>
+      </div>
+    </div>
+
+    <div style="margin-top:1.25rem; padding-top:1rem; border-top: 1px solid #f0f0f0;">
+      <div style="font-size:0.8rem;font-weight:600;color:#555;margin-bottom:0.5rem;">What ALL reviewers missed (peer-review catches):</div>
+      <div class="votes">
+        <span class="vote vote-missed">The capture moment (4/5 reviewers)</span>
+        <span class="vote vote-missed">Temporal patina / accumulation (2/5)</span>
+        <span class="vote vote-missed">Empty state design (1/5)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADVISOR DETAILS -->
+  <div class="section-title">Advisor Responses (full)</div>
+
+  <details>
+    <summary><span class="advisor-tag tag-expansionist">Expansionist</span> Cabinet as living intellectual autobiography</summary>
+    <div class="advisor-body">
+      <p>The cabinet of curiosities framing is underselling itself. Don't just make it look like a museum — make it behave like one. This app could become a living intellectual autobiography. Every pièce you add is a data point in your intellectual life. The real opportunity is longitudinal: in 3 years, you open MonSavoir and see the shape of your curiosity over time.</p>
+      <p><strong>Nomenclature that compounds meaning:</strong></p>
+      <ul>
+        <li>The collection → <strong>Le Cabinet</strong></li>
+        <li>Words/definitions → <strong>Spécimens</strong> (pinned and labeled)</li>
+        <li>Questions → <strong>Énigmes</strong> (open and alive)</li>
+        <li>Tags → <strong>Familles</strong> or <strong>Genres</strong> (taxonomic classification)</li>
+        <li>Adding a piece → <strong>Épingler</strong> (to pin, like a butterfly)</li>
+      </ul>
+      <p>The visual opportunity nobody's taking: lean into heterogeneity. Spécimens = pinned, fixed, classified — serif label, rigid card, muted violet like aged velvet. Énigmes = unresolved — slightly asymmetric, amber glow, something still open.</p>
+      <p>The micro-interaction nobody builds: Spécimen unfolds like a drawer in a cabinet. Énigme expands like a scroll being unrolled. Two different physics for two different epistemologies.</p>
+      <p>Hidden upside: this visual language is so distinctive you could open-source the design system. Cabinet-UI. The aesthetic is completely unoccupied in the productivity space.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-tag tag-firstprinciples">First Principles</span> Vault not museum — nomenclature before aesthetics</summary>
+    <div class="advisor-body">
+      <p>You're not redesigning a UI. You're answering: what kind of relationship do you want with your own knowledge? The real question is: does this app make you want to return to it daily, and does it make you feel something when you do?</p>
+      <p>From first principles, a cabinet of curiosities isn't decorative — it's a memory palace with ego. The collector is the curator. The interface should reinforce that you are building something that belongs only to you.</p>
+      <p>The wrong question: <em>what visual style conveys "cabinet of curiosities"?</em><br>The right question: <em>what does the app need to do differently so that opening it feels like unlocking a personal vault rather than opening a list?</em></p>
+      <p>Nomenclature before aesthetics. If you call things "pièces" but treat them like notes, the UI will drift toward notes. The collection is the hero, not the card. Two types = two natures, not two colors — epistemic difference should drive layout divergence, not just color.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-tag tag-contrarian">Contrarian</span> Aesthetic front-loading is the fatal trap</summary>
+    <div class="advisor-body">
+      <p>Cabinet of curiosities aesthetics are browsing aesthetics. They reward slow, luxurious exploration. Your actual use case is daily capture and quick retrieval — fundamentally utilitarian habits that fight against baroque visual weight.</p>
+      <p><strong>Specific failure points:</strong></p>
+      <ul>
+        <li><strong>The add flow.</strong> Every ornamental layer is latency tax on capture. If your FAB becomes a wax-sealed quill invitation, you won't use it at 7am.</li>
+        <li><strong>Search.</strong> "Consulter les archives"? Cute once, annoying by day four.</li>
+        <li><strong>Card density.</strong> On a 390px screen, the spatial magic of a real cabinet collapses. You're left with dark backgrounds and serif fonts — dark mode with pretension.</li>
+        <li><strong>Nomenclature trap.</strong> Renaming everything feels delightful in a design doc and alienating in daily use.</li>
+      </ul>
+      <p>The real question: what problem does the aesthetic solve for a solo daily-use app that nobody else sees? <em>Extraordinary for whom?</em></p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-tag tag-outsider">Outsider</span> Spatial logic and the patina of time</summary>
+    <div class="advisor-body">
+      <p>Spatial logic is the most important design decision, not palette or typography. Real cabinets don't have grids — they have clusters, arrangements, density that tells a story. Some objects are large. Some are tucked. The arrangement itself carries meaning.</p>
+      <p>What's missing from the brief: how do you navigate back in time? A cabinet of curiosities is fundamentally about accumulation and discovery through your own past. No mention of how older pieces surface, how they feel different from recent ones, whether there's a sense of patina on aged entries.</p>
+      <p>Also missing: what does adding a piece feel like? The FAB button is the most generic interaction in mobile design. For something that's supposed to feel extraordinary, the act of capture should feel like placing an artifact in a drawer — deliberate, tactile, ritualistic.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="advisor-tag tag-executor">Executor</span> Critical path — palette → naming → card → animation → nav</summary>
+    <div class="advisor-body">
+      <ol style="padding-left:1.25rem;">
+        <li style="margin-bottom:0.5rem;"><strong>Palette first.</strong> Parchment <code>#F5F0E8</code>, Ink <code>#1C1917</code>, Brass <code>#B8860B</code>, Violet <code>#5B21B6</code>, Amber <code>#D97706</code>.</li>
+        <li style="margin-bottom:0.5rem;"><strong>Rename entities.</strong> Words → Spécimens. Questions → Énigmes. Tags → Classifications. Collection → Le Cabinet. FAB → Cataloguer. 20 minutes, global find/replace.</li>
+        <li style="margin-bottom:0.5rem;"><strong>Rebuild one card.</strong> Aged border (<code>border-2 border-brass/40 rounded-sm</code>), specimen number top-left, Playfair Display or Crimson Pro.</li>
+        <li style="margin-bottom:0.5rem;"><strong>One micro-interaction.</strong> Card tap: <code>rotateY</code> 3 degrees + paper texture reveal with Framer Motion.</li>
+        <li><strong>Retheme BottomNav last.</strong> Phosphor Icons thin-line set.</li>
+      </ol>
+      <p>Each step independently shippable. You'll feel the vibe shift after step 3. That's your validation gate.</p>
+    </div>
+  </details>
+
+  <!-- PEER REVIEWS -->
+  <div class="section-title" style="margin-top:2rem;">Peer Review Highlights</div>
+  <details>
+    <summary>5 peer reviewers — key observations</summary>
+    <div class="advisor-body">
+      <p><strong>Strongest response:</strong> A (Expansionist) received 3 votes for "sharpest design insight" — specifically "two different physics for two different epistemologies." D (Executor) received 2 votes for being the only actionable critical path. E (First Principles) received 1 vote for the deepest reframe.</p>
+      <p><strong>Biggest blind spot:</strong> D (Executor) flagged by 4/5 reviewers — "museum costume not museum logic." C (Contrarian) flagged by 2/5 — "identifies the tension but offers no counter-proposal."</p>
+      <p><strong>What all advisors missed (peer-review consensus):</strong></p>
+      <ul>
+        <li><strong>The capture moment</strong> — 4/5 reviewers flagged this independently. The add flow is the most critical interaction and nobody designed it.</li>
+        <li><strong>Temporal rhythm and patina</strong> — 2/5 reviewers. Day 1 vs. day 300 experience. Accumulation changes meaning.</li>
+        <li><strong>The empty state</strong> — 1/5 reviewers. A sparse collection with premium aesthetics looks broken, not curated.</li>
+      </ul>
+    </div>
+  </details>
+
+  <div class="footer">
+    <span>MonSavoir LLM Council · 21 mai 2026</span>
+    <span>5 advisors · 5 peer reviews · 1 chairman</span>
+  </div>
+
+</div>
+</body>
+</html>
