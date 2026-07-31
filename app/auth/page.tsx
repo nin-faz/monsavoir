@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Mail, Lock, User, ArrowRight } from "lucide-react";
+import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
+import { Sphere3D } from "@/components/three/Sphere3D";
+import { useTransition } from "@/context/TransitionContext";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -16,6 +18,20 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
+  const { startDive } = useTransition();
+
+  // Skip the video for users who've asked the OS/browser to reduce motion —
+  // straight to the dashboard instead of trapping them behind a fixed clip.
+  const goToDashboard = () => {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      router.push("/dashboard");
+    } else {
+      startDive();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +39,7 @@ export default function AuthPage() {
     try {
       if (mode === "signin") await signIn(email, password);
       else await signUp(email, password, name);
-      router.push("/dashboard");
+      goToDashboard();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("user-not-found") || msg.includes("wrong-password") || msg.includes("invalid-credential")) setError("Email ou mot de passe incorrect");
@@ -35,7 +51,7 @@ export default function AuthPage() {
 
   const handleGoogle = async () => {
     setError(""); setLoading(true);
-    try { await signInWithGoogle(); router.push("/dashboard"); }
+    try { await signInWithGoogle(); goToDashboard(); }
     catch { setError("Connexion Google échouée"); }
     finally { setLoading(false); }
   };
@@ -49,20 +65,14 @@ export default function AuthPage() {
       <div className="w-full max-w-sm relative">
         {/* Logo / Crest */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-          <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 border border-[#9B2335]/50"
-            style={{
-              background: "linear-gradient(135deg, #2E1065, #5B21B6, #7C3AED)",
-              boxShadow: "0 8px 32px rgba(91,33,182,0.4), inset 0 1px 0 rgba(201,168,76,0.3)",
-            }}>
-            {/* Gold shimmer overlay */}
-            <div className="absolute inset-0 rounded-2xl" style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.15), transparent, rgba(201,168,76,0.1))" }} />
-            <BookOpen className="w-9 h-9 relative z-10" style={{ color: "#F5EDD8" }} />
+          <div className="relative mx-auto -mb-2 w-44 h-44">
+            <Sphere3D className="w-full h-full" />
           </div>
           <h1 className="text-3xl font-bold text-[#2C1810] dark:text-[#F5EDD8]"
             style={{ fontFamily: "var(--font-crimson, Georgia, serif)", letterSpacing: "0.03em" }}>
             MonSavoir
           </h1>
-          <p className="text-[9px] text-[#8B6F4E] mt-1.5 tracking-[0.2em] uppercase" style={{ fontFamily: "Georgia, serif" }}>
+          <p className="text-[9px] text-[var(--muted)] mt-1.5 tracking-[0.2em] uppercase" style={{ fontFamily: "Georgia, serif" }}>
             Cabinet de Curiosités Intellectuelles
           </p>
           {/* Gold divider */}
@@ -89,13 +99,15 @@ export default function AuthPage() {
           <div className="flex rounded-lg p-1 mb-5" style={{ background: "rgba(44,24,16,0.06)" }}>
             {(["signin", "signup"] as const).map((m) => (
               <button key={m} onClick={() => { setMode(m); setError(""); }}
-                className="flex-1 py-2 text-xs font-bold rounded-md transition-all duration-200 tracking-widest uppercase"
+                className="flex-1 py-2 text-xs font-bold rounded-md transition-all duration-200 tracking-widest uppercase cursor-pointer"
                 style={{
                   fontFamily: "Georgia, serif",
                   background: mode === m ? "var(--card)" : "transparent",
-                  color: mode === m ? "#2C1810" : "#8B6F4E",
+                  color: mode === m ? "var(--foreground)" : "var(--muted)",
                   boxShadow: mode === m ? "0 1px 4px rgba(44,24,16,0.1), inset 0 1px 0 rgba(201,168,76,0.15)" : "none",
-                }}>
+                }}
+                onMouseEnter={e => { if (mode !== m) e.currentTarget.style.background = "rgba(201,168,76,0.08)"; }}
+                onMouseLeave={e => { if (mode !== m) e.currentTarget.style.background = "transparent"; }}>
                 {m === "signin" ? "Connexion" : "Inscription"}
               </button>
             ))}
@@ -106,31 +118,33 @@ export default function AuthPage() {
               {mode === "signup" && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B09070]" />
-                    <Input placeholder="Ton prénom" value={name} onChange={(e) => setName(e.target.value)} className="pl-9" required={mode === "signup"} />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted)]" />
+                    <Input placeholder="Ton prénom" autoComplete="given-name" value={name} onChange={(e) => setName(e.target.value)} className="pl-9" required={mode === "signup"} />
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B09070]" />
-              <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" required />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted)]" />
+              <Input type="email" placeholder="Email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" required />
             </div>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B09070]" />
-              <Input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" required />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted)]" />
+              <Input type="password" placeholder="Mot de passe" autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" required />
             </div>
 
             {error && (
               <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="text-red-700 text-xs text-center py-2 px-3 rounded-lg border"
+                className="text-red-700 dark:text-red-400 text-xs text-center py-2 px-3 rounded-lg border"
                 style={{ background: "rgba(185,28,28,0.06)", borderColor: "rgba(185,28,28,0.2)", fontFamily: "Georgia, serif" }}>
                 {error}
               </motion.p>
             )}
 
-            <button type="submit" disabled={loading}
-              className="w-full h-11 rounded-lg text-xs font-bold tracking-widest uppercase text-[#F5EDD8] border transition-all disabled:opacity-50"
+            <motion.button type="submit" disabled={loading}
+              whileHover={loading ? undefined : { scale: 1.02, boxShadow: "0 4px 20px rgba(91,33,182,0.6)" }}
+              whileTap={loading ? undefined : { scale: 0.97 }}
+              className="w-full h-11 rounded-lg text-xs font-bold tracking-widest uppercase text-[#F5EDD8] border disabled:opacity-50 cursor-pointer"
               style={{
                 background: "linear-gradient(135deg, #2E1065, #5B21B6)",
                 borderColor: "#7C3AED",
@@ -148,21 +162,21 @@ export default function AuthPage() {
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               )}
-            </button>
+            </motion.button>
           </form>
 
           <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
-            <span className="text-[9px] text-[#8B6F4E] tracking-widest uppercase" style={{ fontFamily: "Georgia, serif" }}>ou</span>
+            <span className="text-[9px] text-[var(--muted)] tracking-widest uppercase" style={{ fontFamily: "Georgia, serif" }}>ou</span>
             <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
           </div>
 
           <button onClick={handleGoogle} disabled={loading}
-            className="w-full h-11 rounded-lg text-xs font-bold tracking-wide border flex items-center justify-center gap-2 transition-all"
+            className="w-full h-11 rounded-lg text-xs font-bold tracking-wide border flex items-center justify-center gap-2 transition-all cursor-pointer disabled:cursor-default"
             style={{
               background: "var(--card)",
               borderColor: "var(--border)",
-              color: "#5A3E2A",
+              color: "var(--text-body)",
               fontFamily: "Georgia, serif",
             }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(201,168,76,0.06)"}
@@ -178,7 +192,7 @@ export default function AuthPage() {
           </button>
         </motion.div>
 
-        <p className="text-center mt-5 text-[9px] text-[#8B6F4E] tracking-[0.2em] uppercase" style={{ fontFamily: "Georgia, serif" }}>
+        <p className="text-center mt-5 text-[9px] text-[var(--muted)] tracking-[0.2em] uppercase" style={{ fontFamily: "Georgia, serif" }}>
           ✦ Usage personnel & privé ✦
         </p>
       </div>

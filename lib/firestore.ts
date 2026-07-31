@@ -16,7 +16,8 @@ import { Entry, Tag } from "@/types";
 
 export function subscribeToEntries(
   userId: string,
-  callback: (entries: Entry[]) => void
+  callback: (entries: Entry[]) => void,
+  onError?: (error: Error) => void
 ) {
   const q = query(
     collection(db, "entries"),
@@ -24,20 +25,25 @@ export function subscribeToEntries(
     orderBy("createdAt", "desc")
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const entries = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
-      updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() || new Date(),
-    })) as Entry[];
-    callback(entries);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const entries = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+        updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() || new Date(),
+      })) as Entry[];
+      callback(entries);
+    },
+    (error) => onError?.(error)
+  );
 }
 
 export function subscribeToTags(
   userId: string,
-  callback: (tags: Tag[]) => void
+  callback: (tags: Tag[]) => void,
+  onError?: (error: Error) => void
 ) {
   const q = query(
     collection(db, "tags"),
@@ -45,14 +51,18 @@ export function subscribeToTags(
     orderBy("createdAt", "asc")
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const tags = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
-    })) as Tag[];
-    callback(tags);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const tags = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+      })) as Tag[];
+      callback(tags);
+    },
+    (error) => onError?.(error)
+  );
 }
 
 export async function createEntry(

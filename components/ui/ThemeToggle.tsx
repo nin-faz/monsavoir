@@ -95,8 +95,9 @@ export function ThemeToggle({ dark, toggle }: ThemeToggleProps) {
               height: 18,
               background: "linear-gradient(180deg, rgba(201,168,76,0.3), rgba(201,168,76,0.7))",
               borderRadius: 999,
+              originY: "top",
             }}
-            animate={{ scaleY: pulling ? 1.45 : 1, originY: "top" }}
+            animate={{ scaleY: pulling ? 1.45 : 1 }}
             transition={{ type: "spring", stiffness: 700, damping: 18 }}
           />
 

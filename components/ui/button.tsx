@@ -4,17 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95 min-h-[44px] tracking-wide",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-ink)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95 min-h-[44px] tracking-wide",
   {
     variants: {
       variant: {
-        default: "bg-[#7B1D1D] text-[#F5EDD8] hover:bg-[#5C1515] shadow-md shadow-[#7B1D1D]/30 border border-[#9B2335]/50",
-        gold: "bg-[#C9A84C] text-[#2C1810] hover:bg-[#A07835] shadow-md shadow-[#C9A84C]/30 border border-[#A07835]",
-        destructive: "bg-red-800 text-[#F5EDD8] hover:bg-red-900 border border-red-900/50",
+        default: "bg-[var(--burgundy)] text-[#F5EDD8] hover:bg-[var(--burgundy-hover)] shadow-md shadow-[var(--burgundy-shadow)] border border-[var(--burgundy-border)]",
+        gold: "bg-[var(--gold)] text-[#2C1810] hover:bg-[var(--gold-dark)] shadow-md shadow-[#C9A84C]/30 border border-[var(--gold-dark)]",
+        destructive: "bg-red-800 dark:bg-red-700 text-[#F5EDD8] hover:bg-red-900 dark:hover:bg-red-600 border border-red-900/50 dark:border-red-500/40",
         outline: "border border-[#D4B896] dark:border-[#3A2810] bg-[#FDF6E3] dark:bg-[#1F1409] text-[#2C1810] dark:text-[#F5EDD8] hover:bg-[#F5EDD8] dark:hover:bg-[#2A1C0C]",
         secondary: "bg-[#F5EDD8] dark:bg-[#2A1C0C] text-[#2C1810] dark:text-[#F5EDD8] hover:bg-[#EDD9A3] dark:hover:bg-[#3A2810] border border-[#D4B896] dark:border-[#3A2810]",
-        ghost: "hover:bg-[#F5EDD8] dark:hover:bg-[#2A1C0C] text-[#8B6F4E] dark:text-[#8B6F4E]",
-        link: "text-[#C9A84C] underline-offset-4 hover:underline",
+        ghost: "hover:bg-[#F5EDD8] dark:hover:bg-[#2A1C0C] text-[var(--muted)]",
+        link: "text-[var(--gold-ink)] underline-offset-4 hover:underline",
       },
       size: {
         default: "h-11 px-5 py-2",

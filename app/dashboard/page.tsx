@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,7 +14,8 @@ import {
   X,
   Tag as TagIcon,
   LogOut,
-  User,
+  Wand2,
+  ScrollText,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
@@ -26,8 +27,9 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Badge } from "@/components/ui/badge";
 import { Starfield } from "@/components/ui/Starfield";
 import { Entry, EntryType, TAG_COLORS } from "@/types";
+import { haptic } from "@/lib/utils";
 import { deleteTag, updateTag } from "@/lib/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function ColumnDecor() {
   return (
@@ -436,7 +438,7 @@ function SectionHeading({ label }: { label: string }) {
       />
       <span
         className="text-[9px] font-bold tracking-[0.28em] uppercase whitespace-nowrap"
-        style={{ color: "#C9A84C", fontFamily: "Georgia, serif" }}
+        style={{ color: "var(--gold-ink)", fontFamily: "Georgia, serif" }}
       >
         {label}
       </span>
@@ -547,50 +549,103 @@ const SHELF_LABELS = [
   "Arcana",
 ];
 
-function BookShelf() {
+// Books unlocked per collector rank level (0-5, see `rank` in DashboardPage),
+// not one book per entry — with hundreds of entries at higher tiers, a 1:1
+// mapping would either be unreadable or require an unbounded book catalog.
+// The shelf instead visualizes *progress through the ranks*, capped at the
+// 10 book designs available.
+const SHELF_BOOKS_BY_LEVEL = [2, 4, 6, 8, 9, 10];
+
+function BookShelf({ level }: { level: number }) {
+  const count = SHELF_BOOKS_BY_LEVEL[Math.min(Math.max(level, 0), SHELF_BOOKS_BY_LEVEL.length - 1)];
+  const visibleBooks = SHELF_BOOKS.slice(0, count);
   return (
     <div className="mb-5 -mx-1">
       <div className="flex items-end gap-[2px] justify-center px-2">
-        {SHELF_BOOKS.map((book, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: i * 0.04,
-              duration: 0.4,
-              ease: [0.34, 1.56, 0.64, 1],
-            }}
-            className="relative flex items-center justify-center select-none"
-            style={{
-              width: book.w,
-              height: book.h,
-              background: book.bg,
-              borderRadius: "2px 2px 0 0",
-              borderLeft: `1px solid ${book.border}44`,
-              borderTop: `1px solid ${book.border}66`,
-              borderRight: "1px solid rgba(0,0,0,0.35)",
-              boxShadow:
-                "2px 0 5px rgba(0,0,0,0.3), inset 1px 0 0 rgba(255,255,255,0.08)",
-              flexShrink: 0,
-            }}
-          >
-            <span
+        {visibleBooks.map((book, i) => {
+          const restShadow =
+            "2px 0 5px rgba(0,0,0,0.3), inset 1px 0 0 rgba(255,255,255,0.08)";
+          const bookVariants = {
+            hidden: { opacity: 0, y: 18 },
+            rest: {
+              opacity: 1,
+              y: 0,
+              filter: "brightness(1)",
+              boxShadow: restShadow,
+              transition: {
+                delay: i * 0.04,
+                duration: 0.4,
+                ease: [0.34, 1.56, 0.64, 1] as const,
+              },
+            },
+            hover: {
+              y: -9,
+              filter: "brightness(1.18)",
+              boxShadow: `2px 4px 12px rgba(0,0,0,0.4), 0 0 14px ${book.border}66, inset 1px 0 0 rgba(255,255,255,0.15)`,
+              transition: { type: "spring" as const, stiffness: 320, damping: 16 },
+            },
+          };
+          return (
+            <motion.div
+              key={i}
+              initial="hidden"
+              animate="rest"
+              whileHover="hover"
+              whileTap={{ scale: 0.92, y: -3, transition: { duration: 0.15 } }}
+              variants={bookVariants}
+              className="relative flex items-center justify-center select-none cursor-pointer"
+              title={SHELF_LABELS[i]}
               style={{
-                writingMode: "vertical-rl",
-                textOrientation: "mixed",
-                fontSize: 5,
-                color: "rgba(255,255,255,0.5)",
-                fontFamily: "Georgia, serif",
-                letterSpacing: "0.06em",
-                transform: "rotate(180deg)",
-                userSelect: "none",
+                width: book.w,
+                height: book.h,
+                background: book.bg,
+                borderRadius: "2px 2px 0 0",
+                borderLeft: `1px solid ${book.border}44`,
+                borderTop: `1px solid ${book.border}66`,
+                borderRight: "1px solid rgba(0,0,0,0.35)",
+                flexShrink: 0,
+                overflow: "hidden",
+                transformOrigin: "bottom center",
               }}
             >
-              {SHELF_LABELS[i]}
-            </span>
-          </motion.div>
-        ))}
+              {/* Gold shine sweep */}
+              <motion.div
+                variants={{
+                  rest: { backgroundPosition: "160% 0%" },
+                  hover: {
+                    backgroundPosition: "-60% 0%",
+                    transition: { duration: 0.7, ease: "easeOut" },
+                  },
+                }}
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: `linear-gradient(115deg, transparent 40%, ${book.border}CC 50%, transparent 60%)`,
+                  backgroundSize: "300% 300%",
+                  mixBlendMode: "overlay",
+                }}
+              />
+              <motion.span
+                variants={{
+                  rest: { color: "rgba(255,255,255,0.5)" },
+                  hover: { color: "rgba(255,255,255,0.9)" },
+                }}
+                style={{
+                  writingMode: "vertical-rl",
+                  textOrientation: "mixed",
+                  fontSize: 5,
+                  fontFamily: "Georgia, serif",
+                  letterSpacing: "0.06em",
+                  transform: "rotate(180deg)",
+                  userSelect: "none",
+                  position: "relative",
+                  zIndex: 1,
+                }}
+              >
+                {SHELF_LABELS[i]}
+              </motion.span>
+            </motion.div>
+          );
+        })}
       </div>
       <div
         style={{
@@ -614,42 +669,82 @@ function BookShelf() {
   );
 }
 
+// Ethereal glass pages, not paper: cool cyan/violet light-wash instead of
+// warm brown foxing, so the leaf reads as a plane of light rather than a
+// physical sheet.
 const pageTex = [
-  "radial-gradient(ellipse 90% 70% at 10% 15%, rgba(140,80,10,0.10) 0%, transparent 65%)",
-  "radial-gradient(ellipse 70% 90% at 90% 80%, rgba(100,55,8,0.09) 0%, transparent 65%)",
-  "radial-gradient(ellipse 50% 50% at 55% 45%, rgba(180,130,40,0.05) 0%, transparent 55%)",
-  "linear-gradient(180deg, rgba(50,20,4,0.07) 0%, transparent 18%, transparent 80%, rgba(50,20,4,0.09) 100%)",
+  "radial-gradient(ellipse 90% 70% at 10% 15%, rgba(148,224,240,0.10) 0%, transparent 65%)",
+  "radial-gradient(ellipse 70% 90% at 90% 80%, rgba(147,112,219,0.10) 0%, transparent 65%)",
+  "radial-gradient(ellipse 50% 50% at 55% 45%, rgba(94,211,235,0.06) 0%, transparent 55%)",
+  "linear-gradient(180deg, rgba(94,211,235,0.05) 0%, transparent 18%, transparent 80%, rgba(76,29,149,0.08) 100%)",
 ].join(", ");
 
+// Deep violet/indigo, translucent rather than opaque cream — each page a
+// shade darker as it nears the back of the stack, same logic as before,
+// new palette.
 const BOOK_PAGES = [
-  { base: [205, 170, 85] as [number, number, number], initY: 0 },
-  { base: [210, 176, 92] as [number, number, number], initY: 8 },
-  { base: [215, 182, 98] as [number, number, number], initY: 16 },
-  { base: [218, 186, 102] as [number, number, number], initY: 24 },
-  { base: [220, 190, 106] as [number, number, number], initY: 32 },
+  { base: [46, 20, 82] as [number, number, number], initY: 0 },
+  { base: [40, 16, 72] as [number, number, number], initY: 8 },
+  { base: [34, 13, 62] as [number, number, number], initY: 16 },
+  { base: [29, 11, 54] as [number, number, number], initY: 24 },
+  { base: [24, 9, 46] as [number, number, number], initY: 32 },
 ];
+
+// Gold dust that rides the spine while the pages turn — spread vertically
+// and staggered in step with the page flip so it reads as sparks kicked up
+// by the turning paper, not a static decoration.
+// One spark per page (same count as BOOK_PAGES) so its stagger can be
+// locked to the exact same cadence as the page turns below — a spark
+// lights up right as its matching page lifts, instead of running on an
+// independent, harder-to-bound schedule.
+const BOOK_SPARKS = BOOK_PAGES.map((_, i) => ({
+  top: 10 + i * 18,
+  x: i % 2 === 0 ? -1 : 1,
+  spread: 6 + (i % 3) * 9,
+  size: i % 2 === 0 ? 4 : 3,
+}));
 
 function BookFlipEffect({ trigger }: { trigger: number }) {
   const [active, setActive] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Tracks the last `trigger` value we've reacted to, so the mount below
+  // happens during render (React's documented "adjust state from a prop
+  // change" pattern, using state rather than a ref so it stays compatible
+  // with the React Compiler) instead of a synchronous setState in a
+  // useEffect body.
+  const [seenTrigger, setSeenTrigger] = useState(trigger);
 
-  useEffect(() => {
-    if (trigger === 0) return;
-    setActive(true);
-    const t = setTimeout(() => setActive(false), 700);
-    return () => clearTimeout(t);
-  }, [trigger]);
+  // Mount the overlay when `trigger` changes. Unmounting is driven by the
+  // GSAP timeline's onComplete (below) rather than a parallel setTimeout,
+  // so the fade-out and the unmount can never drift apart or race each other.
+  if (trigger !== seenTrigger) {
+    setSeenTrigger(trigger);
+    if (
+      trigger !== 0 &&
+      typeof window !== "undefined" &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setActive(true);
+    }
+  }
 
   useGSAP(
     () => {
       if (!active || !containerRef.current) return;
 
+      const veil = containerRef.current.querySelector<HTMLElement>(".book-flip-veil");
+      const book = containerRef.current.querySelector<HTMLElement>(".book-flip-book");
+      const sparks = containerRef.current.querySelectorAll<HTMLElement>(".book-flip-spark");
+      const flash = containerRef.current.querySelector<HTMLElement>(".book-flip-flash");
       const leftPages =
         containerRef.current.querySelectorAll<HTMLElement>(".book-left-page");
       const rightPages =
         containerRef.current.querySelectorAll<HTMLElement>(".book-right-page");
 
-      // Explicit initial states — GSAP needs to own the transform
+      // Explicit initial states — GSAP needs to own every transform it animates.
+      gsap.set(veil, { opacity: 0 });
+      gsap.set(sparks, { opacity: 0, scale: 0.4 });
+      gsap.set(flash, { opacity: 0, scaleY: 0.25, transformOrigin: "center center" });
       gsap.set(leftPages, { rotationY: 180, transformOrigin: "right center" });
       rightPages.forEach((el, i) =>
         gsap.set(el, {
@@ -658,29 +753,84 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
         }),
       );
 
-      const tl = gsap.timeline({ defaults: { duration: 0.2 } });
+      const tl = gsap.timeline({
+        defaults: { force3D: true },
+        onComplete: () => setActive(false),
+      });
 
-      // Right pages flip over spine (initY → -180), power3.in = fast at end
-      tl.to(
-        rightPages,
-        {
-          rotationY: -180,
-          ease: "power3.in",
-          stagger: 0.05,
-        },
+      // 1. ANTICIPATION — a tiny pull-back/squash before the book springs
+      //    open, like a breath drawn in before the gesture.
+      tl.to(veil, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0);
+      tl.fromTo(
+        book,
+        { opacity: 0, scale: 0.85, rotationZ: -2, transformOrigin: "center center" },
+        { opacity: 1, scale: 0.94, rotationZ: -0.5, duration: 0.05, ease: "power2.out" },
         0,
       );
 
-      // Left pages land from spine (180 → 0), back.out = natural settle
+      // 2. SNAP OPEN — elastic rather than a plain back.out settle: a loose,
+      //    slightly wobbly spring instead of a rigid two-step ease pair —
+      //    this alone is what breaks the "mechanical" read.
       tl.to(
-        leftPages,
-        {
-          rotationY: 0,
-          ease: "back.out(1.2)",
-          stagger: 0.05,
-        },
+        book,
+        { scale: 1, rotationZ: 0, duration: 0.22, ease: "elastic.out(1, 0.55)" },
         0.05,
       );
+
+      // 3. THE FEUILLETAGE — pages still turn one after another (not as one
+      //    flat block), but tight enough that the whole flip reads in well
+      //    under a second. Each page's duration is nudged slightly so they
+      //    don't all move in perfect lockstep (a fixed stagger on identical
+      //    durations is what reads as "rigid"/metronomic).
+      const pageStart = 0.12;
+      const pageStagger = 0.045;
+      const pageDuration = 0.2;
+      rightPages.forEach((el, i) => {
+        const jitter = (i % 2 === 0 ? 1 : -1) * 0.015;
+        tl.add(
+          gsap
+            .timeline()
+            .to(el, { rotationY: -190, duration: pageDuration * 0.6 + jitter, ease: "power2.in" })
+            .to(el, { rotationY: -180, duration: pageDuration * 0.4, ease: "back.out(1.8)" }),
+          pageStart + i * pageStagger,
+        );
+      });
+      leftPages.forEach((el, i) => {
+        const jitter = (i % 2 === 0 ? -1 : 1) * 0.015;
+        tl.add(
+          gsap
+            .timeline()
+            .to(el, { rotationY: -6, duration: pageDuration * 0.6 + jitter, ease: "power2.in" })
+            .to(el, { rotationY: 0, duration: pageDuration * 0.4, ease: "back.out(1.8)" }),
+          pageStart + 0.03 + i * pageStagger,
+        );
+      });
+
+      // 4. THE MAGIC — gold dust and a warm flash on the same tight cadence.
+      tl.to(
+        sparks,
+        {
+          opacity: 1,
+          scale: 1.2,
+          duration: 0.12,
+          ease: "power1.inOut",
+          stagger: pageStagger,
+          repeat: 1,
+          yoyo: true,
+        },
+        pageStart,
+      );
+      tl.to(
+        flash,
+        { opacity: 0.85, scaleY: 1, duration: 0.1, ease: "power2.out" },
+        pageStart + pageStagger * 2,
+      );
+      tl.to(flash, { opacity: 0, duration: 0.18, ease: "power2.in" }, ">");
+
+      // 5. CLOSE — no dead gap before the exit. Book and veil leave together.
+      const closeAt = pageStart + pageStagger * 4 + pageDuration + 0.05;
+      tl.to(book, { opacity: 0, scale: 0.96, duration: 0.1, ease: "power2.in" }, closeAt);
+      tl.to(veil, { opacity: 0, duration: 0.1, ease: "power2.in" }, "<");
     },
     {
       dependencies: [trigger, active],
@@ -691,12 +841,18 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
 
   if (!active) return null;
 
-  const leatherBg =
-    "linear-gradient(160deg, #2a0e03 0%, #4a1a06 25%, #6b2a0c 50%, #4a1a06 75%, #2a0e03 100%)";
+  // Cover: same ethereal object as the logo/transition video — deep violet
+  // base with a soft cyan haze breathing through the center, not an opaque
+  // leather panel. The cyan glow is what ties this to the app's identity;
+  // the violet is the constant, the gold (borders/sparks) stays the accent.
+  const coverBg =
+    "radial-gradient(ellipse 80% 65% at 50% 45%, rgba(94,211,235,0.16) 0%, rgba(76,29,149,0.35) 42%, rgba(20,6,31,0.92) 75%), " +
+    "linear-gradient(160deg, #14061F 0%, #240B3D 35%, #3B1568 60%, #1C0730 85%, #0E0417 100%)";
 
   return (
     <div
       ref={containerRef}
+      aria-hidden="true"
       style={{
         position: "fixed",
         top: 56,
@@ -708,47 +864,66 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(8,4,0,0.55)",
       }}
     >
+      {/* VEIL — dims the dashboard behind the book, faded by GSAP */}
+      <div
+        className="book-flip-veil"
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(8,4,16,0.6)",
+          backdropFilter: "blur(2px)",
+          WebkitBackdropFilter: "blur(2px)",
+        }}
+      />
+
       {/* THE BOOK — floating centered */}
       <div
+        className="book-flip-book"
         style={{
           position: "relative",
           width: "98%",
           maxWidth: 540,
           height: "60%",
           borderRadius: 6,
-          background: leatherBg,
+          background: coverBg,
           boxShadow:
-            "0 8px 48px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
+            "0 0 60px 8px rgba(94,211,235,0.16), 0 8px 48px rgba(0,0,0,0.75), inset 0 1px 0 rgba(148,224,240,0.06)",
           overflow: "hidden",
+          willChange: "transform, opacity",
         }}
       >
-        {/* OUTER gold border */}
+        {/* OUTER contour — a luminous cyan line, like the logo's book outline,
+            not an opaque gold frame. Glow via box-shadow rather than a hard
+            edge keeps it reading as light, not as gilded leather. */}
         <div
           style={{
             position: "absolute",
             inset: 5,
-            border: "1.5px solid rgba(201,168,76,0.65)",
+            border: "1px solid rgba(148,224,240,0.55)",
+            boxShadow: "0 0 10px rgba(94,211,235,0.35), inset 0 0 10px rgba(94,211,235,0.12)",
             borderRadius: 3,
             pointerEvents: "none",
             zIndex: 30,
           }}
         />
-        {/* INNER gold border */}
+        {/* INNER contour — the gold hairline is kept, but thinned to an
+            accent rather than a competing border, matching the sparks'
+            gold and the cyan's cool glow as two supporting notes. */}
         <div
           style={{
             position: "absolute",
             inset: 9,
-            border: "1px solid rgba(201,168,76,0.30)",
+            border: "1px solid rgba(201,168,76,0.25)",
             borderRadius: 2,
             pointerEvents: "none",
             zIndex: 30,
           }}
         />
 
-        {/* Corner ornaments */}
+        {/* Corner wisps — soft cyan glow instead of hard gilded brackets,
+            echoing the particle swirl that wraps the logo. */}
         {(
           [
             ["top", "left"],
@@ -762,60 +937,20 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
             style={{
               position: "absolute",
               zIndex: 31,
-              [v]: 14,
-              [h]: 14,
-              width: 22,
-              height: 22,
-              borderTop:
-                v === "top" ? "2px solid rgba(201,168,76,0.8)" : "none",
-              borderBottom:
-                v === "bottom" ? "2px solid rgba(201,168,76,0.8)" : "none",
-              borderLeft:
-                h === "left" ? "2px solid rgba(201,168,76,0.8)" : "none",
-              borderRight:
-                h === "right" ? "2px solid rgba(201,168,76,0.8)" : "none",
+              [v]: 10,
+              [h]: 10,
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(148,224,240,0.35) 0%, rgba(148,224,240,0.08) 55%, transparent 75%)",
+              filter: "blur(1px)",
             }}
           />
         ))}
 
-        {/* Cover inner content — left panel */}
-        <div
-          style={{
-            position: "absolute",
-            top: 14,
-            left: 14,
-            bottom: 14,
-            width: "calc(50% - 20px)",
-            zIndex: 2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: 22,
-                color: "rgba(201,168,76,0.6)",
-                marginBottom: 6,
-              }}
-            >
-              ◆
-            </div>
-            <div
-              style={{
-                width: 1,
-                height: 40,
-                background:
-                  "linear-gradient(180deg,transparent,rgba(201,168,76,0.4),transparent)",
-                margin: "0 auto 6px",
-              }}
-            />
-            <div style={{ fontSize: 22, color: "rgba(201,168,76,0.6)" }}>◆</div>
-          </div>
-        </div>
-
-        {/* SPINE */}
+        {/* SPINE — dark violet core carries a thin cyan light-line, the
+            gold shimmer strip stays as the single warm accent riding it. */}
         <div
           style={{
             position: "absolute",
@@ -825,10 +960,23 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
             width: 14,
             zIndex: 20,
             background:
-              "linear-gradient(90deg, #0a0200, #2a0d03, #140601, #2a0d03, #0a0200)",
-            boxShadow: "0 0 16px rgba(0,0,0,0.8)",
+              "linear-gradient(90deg, #0A0510, #1E0842, #0A0510, #1E0842, #0A0510)",
+            boxShadow: "0 0 18px rgba(94,211,235,0.25)",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              top: "10%",
+              bottom: "10%",
+              left: 6,
+              right: 6,
+              background:
+                "linear-gradient(180deg,transparent,rgba(148,224,240,0.5),transparent)",
+              filter: "blur(1px)",
+              borderRadius: 2,
+            }}
+          />
           <div
             style={{
               position: "absolute",
@@ -837,7 +985,7 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
               left: 5,
               right: 5,
               background:
-                "linear-gradient(180deg,transparent,rgba(201,168,76,0.4),transparent)",
+                "linear-gradient(180deg,transparent,rgba(201,168,76,0.35),transparent)",
               borderRadius: 2,
             }}
           />
@@ -863,10 +1011,11 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
               style={{
                 position: "absolute",
                 inset: 0,
-                backgroundColor: `rgba(${r},${g},${b},${0.97 - i * 0.05})`,
+                backgroundColor: `rgba(${r},${g},${b},${0.86 - i * 0.06})`,
                 backgroundImage: pageTex,
                 backfaceVisibility: "hidden",
                 WebkitBackfaceVisibility: "hidden",
+                willChange: "transform",
               }}
             >
               <div
@@ -877,7 +1026,7 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
                   bottom: 0,
                   width: 28,
                   background:
-                    "linear-gradient(270deg,rgba(20,8,1,0.3),transparent)",
+                    "linear-gradient(270deg,rgba(94,211,235,0.18),transparent)",
                 }}
               />
               <div
@@ -888,7 +1037,7 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
                   right: 0,
                   textAlign: "center",
                   fontSize: 10,
-                  color: "rgba(100,60,10,0.25)",
+                  color: "rgba(148,224,240,0.30)",
                 }}
               >
                 ✦
@@ -917,10 +1066,11 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
               style={{
                 position: "absolute",
                 inset: 0,
-                backgroundColor: `rgba(${r},${g},${b},${0.97 - i * 0.05})`,
+                backgroundColor: `rgba(${r},${g},${b},${0.86 - i * 0.06})`,
                 backgroundImage: pageTex,
                 backfaceVisibility: "hidden",
                 WebkitBackfaceVisibility: "hidden",
+                willChange: "transform",
               }}
             >
               <div
@@ -931,7 +1081,7 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
                   bottom: 0,
                   width: 28,
                   background:
-                    "linear-gradient(90deg,rgba(20,8,1,0.3),transparent)",
+                    "linear-gradient(90deg,rgba(94,211,235,0.18),transparent)",
                 }}
               />
               <div
@@ -942,7 +1092,7 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
                   right: 0,
                   textAlign: "center",
                   fontSize: 10,
-                  color: "rgba(100,60,10,0.25)",
+                  color: "rgba(148,224,240,0.30)",
                 }}
               >
                 ✦
@@ -951,14 +1101,58 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
           ))}
         </div>
 
-        {/* Cover texture overlay */}
+        {/* SPINE FLASH — one warm sweep of light across the spine at the
+            midpoint of the flip, reusing the app's gold-shimmer language
+            instead of a static seal. */}
+        <div
+          className="book-flip-flash shimmer-gold"
+          style={{
+            position: "absolute",
+            top: "8%",
+            bottom: "8%",
+            left: "calc(50% - 10px)",
+            width: 20,
+            zIndex: 26,
+            borderRadius: 10,
+            filter: "blur(6px)",
+            boxShadow: "0 0 26px 6px rgba(240,216,122,0.7)",
+            pointerEvents: "none",
+            willChange: "transform, opacity",
+          }}
+        />
+
+        {/* GOLD DUST — sparks riding the spine in step with each page turn. */}
+        {BOOK_SPARKS.map((s, i) => (
+          <div
+            key={i}
+            className="book-flip-spark"
+            style={{
+              position: "absolute",
+              top: `${s.top}%`,
+              left: `calc(50% + ${s.x * s.spread}px)`,
+              width: s.size,
+              height: s.size,
+              zIndex: 27,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, #FDEBA8 0%, #C9A84C 60%, transparent 100%)",
+              boxShadow: `0 0 ${s.size * 2.5}px rgba(240,216,122,0.85)`,
+              animation: "twinkle 0.5s ease-in-out infinite",
+              pointerEvents: "none",
+              willChange: "transform, opacity",
+            }}
+          />
+        ))}
+
+        {/* Cover glow overlay — a cool cyan sheen top and bottom instead of
+            a plain white highlight / black vignette, so the surface reads
+            as lit from within rather than varnished leather catching light. */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             zIndex: 1,
             backgroundImage:
-              "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(255,255,255,0.04) 0%, transparent 60%), radial-gradient(ellipse 100% 60% at 50% 100%, rgba(0,0,0,0.2) 0%, transparent 80%)",
+              "radial-gradient(ellipse 100% 100% at 50% 0%, rgba(148,224,240,0.07) 0%, transparent 60%), radial-gradient(ellipse 100% 60% at 50% 100%, rgba(20,6,31,0.35) 0%, transparent 80%)",
           }}
         />
       </div>
@@ -967,12 +1161,27 @@ function BookFlipEffect({ trigger }: { trigger: number }) {
 }
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
-  const { entries, tags, loading } = useEntries();
+  return (
+    <Suspense fallback={null}>
+      <DashboardPageInner />
+    </Suspense>
+  );
+}
+
+function DashboardPageInner() {
+  const { user, logout, loading: authLoading } = useAuth();
+  const { entries, tags, loading, error: entriesError, retry: retryEntries } = useEntries();
   const { dark, toggle: toggleTheme } = useTheme();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState("home");
+  // PWA start_url and direct links can open straight into /dashboard with no
+  // session — bounce to /auth once Firebase has resolved auth state.
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/auth");
+  }, [authLoading, user, router]);
+
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "home");
   const [flipTrigger, setFlipTrigger] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState<Entry | null>(null);
@@ -982,7 +1191,16 @@ export default function DashboardPage() {
   const [confirmDeleteTagId, setConfirmDeleteTagId] = useState<string | null>(
     null,
   );
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (activeTab !== "home") params.set("tab", activeTab);
+    if (search) params.set("q", search);
+    const qs = params.toString();
+    router.replace(qs ? `/dashboard?${qs}` : "/dashboard", { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, search]);
   const [filterType, setFilterType] = useState<EntryType | "all">("all");
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za">(
@@ -1070,7 +1288,30 @@ export default function DashboardPage() {
     setEditEntry(null);
   };
 
-  if (loading) {
+  if (entriesError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="flex flex-col items-center gap-3 text-center max-w-xs">
+          <p
+            className="text-xs text-red-600 dark:text-red-400 tracking-widest uppercase"
+            style={{ fontFamily: "Georgia, serif" }}
+            role="alert"
+          >
+            {entriesError}
+          </p>
+          <button
+            onClick={retryEntries}
+            className="px-4 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase border transition-colors"
+            style={{ fontFamily: "Georgia, serif", color: "var(--gold-ink)", borderColor: "var(--border)" }}
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading || !user || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -1246,7 +1487,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h1
-                  className="font-bold text-[#2C1810] dark:text-[#F5EDD8] leading-tight"
+                  className="font-bold text-[var(--foreground)] leading-tight"
                   style={{
                     fontFamily: "var(--font-crimson, Georgia, serif)",
                     fontSize: "1.1rem",
@@ -1258,7 +1499,7 @@ export default function DashboardPage() {
                 <p
                   className="text-[9px] leading-tight tracking-[0.12em] uppercase"
                   style={{
-                    color: rank.level >= 2 ? "#C9A84C" : "#8B6F4E",
+                    color: rank.level >= 2 ? "var(--gold-ink)" : "var(--muted)",
                     fontFamily: "Georgia, serif",
                   }}
                 >
@@ -1275,7 +1516,7 @@ export default function DashboardPage() {
                       rank.level >= 3
                         ? "linear-gradient(135deg, rgba(201,168,76,0.22), rgba(232,196,106,0.15))"
                         : "rgba(201,168,76,0.12)",
-                    color: rank.level >= 3 ? "#E8C46A" : "#C9A84C",
+                    color: "var(--gold-ink)",
                     border: `1px solid rgba(201,168,76,${0.2 + rank.level * 0.1})`,
                     fontFamily: "Georgia, serif",
                     boxShadow:
@@ -1397,8 +1638,8 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* Decorative bookshelf */}
-                <BookShelf />
+                {/* Bookshelf — grows with the collector's rank */}
+                <BookShelf level={rank.level} />
 
                 {/* Filter + Sort */}
                 <div className="flex items-center gap-2 mb-4">
@@ -1431,7 +1672,7 @@ export default function DashboardPage() {
                                   }
                                 : {
                                     background: "var(--card)",
-                                    color: "#8B6F4E",
+                                    color: "var(--muted)",
                                     borderColor: "var(--border)",
                                   }
                         }
@@ -1467,12 +1708,12 @@ export default function DashboardPage() {
                           }
                         : {
                             background: "var(--card)",
-                            color: "#8B6F4E",
+                            color: "var(--muted)",
                             borderColor: "var(--border)",
                           }
                     }
                   >
-                    <span style={{ fontSize: 12 }}>🪄</span>
+                    <Wand2 className="w-3 h-3" />
                     <AnimatePresence mode="wait">
                       <motion.span
                         key={sortBy}
@@ -1534,12 +1775,11 @@ export default function DashboardPage() {
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
                   <input
-                    autoFocus
                     type="text"
                     placeholder="Chercher dans ta collection..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full h-11 pl-11 pr-4 rounded-lg border text-sm placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[#C9A84C] focus:border-transparent"
+                    className="w-full h-11 pl-11 pr-4 rounded-lg border text-sm placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--gold-ink)] focus:border-transparent"
                     style={{
                       background: "var(--card)",
                       borderColor: "var(--border)",
@@ -1570,7 +1810,7 @@ export default function DashboardPage() {
                         ? "#7C3AED"
                         : t === "question"
                           ? "#2563EB"
-                          : "#C9A84C";
+                          : "var(--gold-ink)";
                     return (
                       <button
                         key={t}
@@ -1644,10 +1884,10 @@ export default function DashboardPage() {
                 ) : (
                   <div className="text-center py-16">
                     <div
-                      className="text-4xl mb-3"
-                      style={{ filter: "grayscale(0.4) opacity(0.5)" }}
+                      className="mb-3 flex justify-center"
+                      style={{ color: "var(--muted)", opacity: 0.5 }}
                     >
-                      📜
+                      <ScrollText className="w-10 h-10" />
                     </div>
                     <p
                       className="text-xs tracking-widest uppercase mb-1"
@@ -1740,7 +1980,7 @@ export default function DashboardPage() {
                                 }}
                               >
                                 Retirer{" "}
-                                <span style={{ color: "#C9A84C" }}>
+                                <span style={{ color: "var(--gold-ink)" }}>
                                   {tag.name}
                                 </span>{" "}
                                 du cabinet ?
@@ -1778,7 +2018,6 @@ export default function DashboardPage() {
                             <>
                               <div className="flex-1 flex flex-col gap-2">
                                 <input
-                                  autoFocus
                                   value={editingTagName}
                                   onChange={(e) =>
                                     setEditingTagName(e.target.value)
@@ -1894,22 +2133,12 @@ export default function DashboardPage() {
                         "linear-gradient(90deg, #A07835, #C9A84C, #E8C46A, #C9A84C, #A07835)",
                     }}
                   />
-                  <div
-                    className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-3 border border-[#C9A84C]/30"
-                    style={{ background: "rgba(201,168,76,0.1)" }}
-                  >
-                    {user?.photoURL ? (
-                      <img
-                        src={user.photoURL}
-                        alt="avatar"
-                        className="w-16 h-16 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <User className="w-7 h-7 text-[#C9A84C]" />
-                    )}
-                  </div>
+                  <AvatarBadge
+                    photoURL={user?.photoURL}
+                    label={user?.displayName || user?.email}
+                  />
                   <h3
-                    className="font-bold text-[#2C1810] dark:text-[#F5EDD8]"
+                    className="font-bold text-[var(--foreground)]"
                     style={{
                       fontFamily: "var(--font-crimson, Georgia, serif)",
                       fontSize: "1.1rem",
@@ -1998,7 +2227,7 @@ export default function DashboardPage() {
                         style={{
                           fontFamily: "var(--font-crimson, Georgia, serif)",
                           color:
-                            rank.level >= 2 ? "#C9A84C" : "var(--foreground)",
+                            rank.level >= 2 ? "var(--gold-ink)" : "var(--foreground)",
                         }}
                       >
                         {rank.title}
@@ -2067,12 +2296,13 @@ export default function DashboardPage() {
         <motion.button
           whileTap={{ scale: 0.92 }}
           whileHover={{ scale: 1.05 }}
-          onClick={() => setShowForm(true)}
+          onClick={() => { haptic(15); setShowForm(true); }}
           className="fab-pulse w-14 h-14 rounded-xl shadow-xl flex items-center justify-center text-[#F5EDD8] border"
           style={{
             position: "fixed",
-            bottom: 500,
-            left: -20,
+            top: "50%",
+            marginTop: -28,
+            left: -8,
             zIndex: 40,
             ...(filterType === "question"
               ? {
@@ -2104,6 +2334,45 @@ export default function DashboardPage() {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function AvatarBadge({ photoURL, label }: { photoURL?: string | null; label?: string | null }) {
+  const [broken, setBroken] = useState(false);
+  const showPhoto = !!photoURL && !broken;
+
+  return (
+    <div
+      className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-3 border border-[#C9A84C]/30 relative overflow-hidden"
+      style={{ background: "rgba(201,168,76,0.1)" }}
+    >
+      {showPhoto ? (
+        <img
+          src={photoURL!}
+          alt="avatar"
+          onError={() => setBroken(true)}
+          className="w-16 h-16 rounded-xl object-cover"
+        />
+      ) : (
+        // Ex-libris style monogram — a bookplate initial rather than a
+        // generic person silhouette, in keeping with the collection/specimen
+        // identity used everywhere else. Also the fallback when a real photo
+        // URL exists but fails to load (expired/blocked Google avatar, etc.).
+        <div
+          className="w-full h-full flex items-center justify-center relative"
+          style={{ background: "linear-gradient(135deg, #2E1065, #5B21B6, #7C3AED)" }}
+        >
+          <span className="absolute top-1 left-1.5 text-[7px] text-[#F5EDD8]/50">✦</span>
+          <span
+            className="text-2xl font-bold text-[#F5EDD8]"
+            style={{ fontFamily: "var(--font-crimson, Georgia, serif)" }}
+          >
+            {(label || "?").charAt(0).toUpperCase()}
+          </span>
+          <span className="absolute bottom-1 right-1.5 text-[7px] text-[#F5EDD8]/50">✦</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -2254,7 +2523,7 @@ function EmptyState({
       <div className="text-center px-4">
         <div className="gold-divider-ornate mb-5 mx-8" />
         <h3
-          className="font-bold text-[#2C1810] dark:text-[#F5EDD8] mb-2"
+          className="font-bold text-[var(--foreground)] mb-2"
           style={{
             fontFamily: "var(--font-crimson, Georgia, serif)",
             fontSize: "1.25rem",

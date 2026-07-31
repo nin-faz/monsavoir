@@ -13,6 +13,12 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
+export function haptic(pattern: number | number[] = 12): void {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+}
+
 export function formatDateRelative(date: Date): string {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
